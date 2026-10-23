@@ -1,11 +1,25 @@
+# Android Studio
 .gradle/
 .idea/
-**/build/
 local.properties
 *.iml
+/build/
+**/build/
+
+# API Spring Boot
+**/target/
+
+# Credenciales y configuración local
 .env
 .env.*
 !.env.example
-*.keystore
+application-local.properties
+application-local.yml
+application-secrets.properties
 *.jks
-gradle.properties.local
+*.keystore
+*.p12
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
