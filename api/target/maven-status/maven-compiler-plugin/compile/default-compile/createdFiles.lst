@@ -1,0 +1,4 @@
+gt\edu\sigelab\api\SigelabApiApplication.class
+gt\edu\sigelab\api\ApiController$LoginRequest.class
+gt\edu\sigelab\api\ApiController$Session.class
+gt\edu\sigelab\api\ApiController.class
