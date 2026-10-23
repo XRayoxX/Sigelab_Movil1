@@ -9,7 +9,7 @@ import gt.edu.sigelab.mobile.UserSession
 import gt.edu.sigelab.mobile.ui.menu.MainMenuScreen
 
 @Composable
-fun AppNavigation(
+fun AppNavegacion(
     session: UserSession,
     onLogout: () -> Unit,
     dashboardContent: @Composable () -> Unit

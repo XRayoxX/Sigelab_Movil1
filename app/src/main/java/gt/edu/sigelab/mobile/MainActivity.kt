@@ -21,6 +21,7 @@ import java.net.URL
 import java.net.SocketTimeoutException
 import java.net.ConnectException
 import java.util.concurrent.Executors
+import gt.edu.sigelab.mobile.navegacion.AppNavegacion
 
 data class UserSession(
     val token: String,
