@@ -3,7 +3,9 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
-val apiUrl = providers.gradleProperty("sigelabApiUrl").orElse("http://127.0.0.1:8080").get()
+val apiUrl = providers.gradleProperty("sigelabApiUrl")
+    .orElse("https://sigelab-api-umg-e8e6g9chenbchzh2.canadacentral-01.azurewebsites.net")
+    .get()
 android {
     namespace = "gt.edu.sigelab.mobile"
     compileSdk = 37

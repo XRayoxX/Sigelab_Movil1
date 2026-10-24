@@ -6,7 +6,7 @@
     <application
         android:label="SIGELAB"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:allowBackup="false">
 
         <activity

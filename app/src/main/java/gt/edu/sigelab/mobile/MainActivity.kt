@@ -15,13 +15,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import gt.edu.sigelab.mobile.navegacion.AppNavegacion
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.SocketTimeoutException
 import java.net.ConnectException
 import java.util.concurrent.Executors
-import gt.edu.sigelab.mobile.navegacion.AppNavegacion
 
 data class UserSession(
     val token: String,
@@ -63,17 +63,14 @@ object Api {
         var connection: HttpURLConnection? = null
 
         try {
-
             Log.d(TAG, "Solicitud $method a $fullUrl")
 
             connection =
                 URL(fullUrl).openConnection() as HttpURLConnection
 
             connection.requestMethod = method
-
             connection.connectTimeout = 15000
             connection.readTimeout = 20000
-
             connection.useCaches = false
 
             connection.setRequestProperty(
@@ -89,7 +86,6 @@ object Api {
             }
 
             if (body != null) {
-
                 connection.doOutput = true
 
                 connection.setRequestProperty(
@@ -99,8 +95,7 @@ object Api {
 
                 connection.outputStream.use { output ->
                     output.write(
-                        body.toString()
-                            .toByteArray(Charsets.UTF_8)
+                        body.toString().toByteArray(Charsets.UTF_8)
                     )
                 }
             }
@@ -109,27 +104,22 @@ object Api {
 
             Log.d(TAG, "Respuesta HTTP $code")
 
-            val responseStream =
-                if (code in 200..299) {
-                    connection.inputStream
-                } else {
-                    connection.errorStream
-                }
+            val stream = if (code in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
 
-            val responseText =
-                responseStream
-                    ?.bufferedReader(Charsets.UTF_8)
-                    ?.use { it.readText() }
-                    .orEmpty()
+            val responseText = stream
+                ?.bufferedReader(Charsets.UTF_8)
+                ?.use { it.readText() }
+                .orEmpty()
 
             if (code !in 200..299) {
-
                 val message = runCatching {
                     val json = JSONObject(responseText)
                     json.optString("error")
-                        .ifBlank {
-                            json.optString("message")
-                        }
+                        .ifBlank { json.optString("message") }
                 }.getOrNull()
                     ?.ifBlank { "Error HTTP $code" }
                     ?: "Error HTTP $code"
@@ -142,52 +132,36 @@ object Api {
             return JSONObject(responseText)
 
         } catch (e: SocketTimeoutException) {
-
             Log.e(TAG, "Tiempo de espera agotado", e)
-
             throw IllegalStateException(
                 "La API no respondió a tiempo: $fullUrl",
                 e
             )
 
         } catch (e: ConnectException) {
-
             Log.e(TAG, "Conexión rechazada", e)
-
             throw IllegalStateException(
                 "No se pudo conectar con la API: $fullUrl",
                 e
             )
 
         } catch (e: Exception) {
-
             Log.e(TAG, "Error en solicitud HTTP", e)
-
             throw e
 
         } finally {
-
             connection?.disconnect()
         }
     }
 
     fun health(done: (Result<String>) -> Unit) {
-
         executor.execute {
-
             val result = runCatching {
-
-                val json = request(
-                    "api/health",
-                    "GET"
-                )
-
-                json.optString("status", "SIN ESTADO")
+                request("api/health", "GET")
+                    .optString("status", "SIN ESTADO")
             }
 
-            main.post {
-                done(result)
-            }
+            main.post { done(result) }
         }
     }
 
@@ -196,11 +170,8 @@ object Api {
         password: String,
         done: (Result<UserSession>) -> Unit
     ) {
-
         executor.execute {
-
             val result = runCatching {
-
                 val json = request(
                     "api/auth/login",
                     "POST",
@@ -216,9 +187,7 @@ object Api {
                 )
             }
 
-            main.post {
-                done(result)
-            }
+            main.post { done(result) }
         }
     }
 
@@ -226,11 +195,8 @@ object Api {
         token: String,
         done: (Result<Dashboard>) -> Unit
     ) {
-
         executor.execute {
-
             val result = runCatching {
-
                 val json = request(
                     "api/dashboard",
                     "GET",
@@ -249,16 +215,12 @@ object Api {
                 )
             }
 
-            main.post {
-                done(result)
-            }
+            main.post { done(result) }
         }
     }
 
     fun logout(token: String) {
-
         executor.execute {
-
             runCatching {
                 request(
                     "api/auth/logout",
@@ -273,7 +235,6 @@ object Api {
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-
         super.onCreate(savedInstanceState)
 
         setContent {
@@ -315,46 +276,48 @@ fun SigelabApp() {
         mutableStateOf<Dashboard?>(null)
     }
 
-    fun reload(userSession: UserSession) {
-
+    fun reload(currentSession: UserSession) {
         busy = true
         error = ""
 
-        Api.dashboard(userSession.token) { result ->
+        Api.dashboard(currentSession.token) { result ->
 
-            result
-                .onSuccess {
-                    dashboard = it
-                    error = ""
-                }
-                .onFailure {
-                    error = it.message
-                        ?: "No fue posible cargar el dashboard"
-                }
+            // Ignorar respuestas de una sesión ya cerrada.
+            if (session?.token == currentSession.token) {
+                result
+                    .onSuccess {
+                        dashboard = it
+                        error = ""
+                    }
+                    .onFailure {
+                        error = it.message
+                            ?: "No fue posible cargar el dashboard"
+                    }
 
-            busy = false
+                busy = false
+            }
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+    val currentSession = session
 
-        verticalArrangement =
-            Arrangement.spacedBy(14.dp)
-    ) {
+    if (currentSession == null) {
 
-        Text(
-            text = "SIGELAB",
-            style = MaterialTheme.typography.headlineLarge
-        )
-
-        if (session == null) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
 
             Text(
-                text = "Sistema de Gestión de Laboratorios",
+                "SIGELAB",
+                style = MaterialTheme.typography.headlineLarge
+            )
+
+            Text(
+                "Sistema de Gestión de Laboratorios",
                 style = MaterialTheme.typography.titleMedium
             )
 
@@ -362,56 +325,47 @@ fun SigelabApp() {
                 value = username,
                 onValueChange = { username = it },
                 label = { Text("Usuario") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
             )
 
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
                 label = { Text("Contraseña") },
-                visualTransformation =
-                    PasswordVisualTransformation(),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true
             )
 
             Button(
                 onClick = {
-
                     busy = true
                     error = ""
-                    connectionStatus = ""
 
-                    Api.login(
-                        username.trim(),
-                        password
-                    ) { result ->
-
+                    Api.login(username.trim(), password) { result ->
                         result
                             .onSuccess {
-
                                 session = it
                                 password = ""
+                                dashboard = null
+                                busy = false
+
+                                // Cargar datos después del login.
                                 reload(it)
                             }
                             .onFailure {
-
                                 error = it.message
                                     ?: "No fue posible iniciar sesión"
-
                                 busy = false
                             }
                     }
                 },
-
                 enabled = !busy &&
                         username.isNotBlank() &&
                         password.isNotBlank(),
-
                 modifier = Modifier.fillMaxWidth()
             ) {
-
                 Text(
                     if (busy) "Conectando..."
                     else "Iniciar sesión"
@@ -421,30 +375,24 @@ fun SigelabApp() {
             HorizontalDivider()
 
             Text(
-                text = "Diagnóstico de conexión",
+                "Diagnóstico de conexión",
                 style = MaterialTheme.typography.titleMedium
             )
 
             OutlinedButton(
                 onClick = {
-
                     busy = true
                     error = ""
                     connectionStatus = "Comprobando API..."
 
                     Api.health { result ->
-
                         result
                             .onSuccess {
-
                                 connectionStatus =
                                     "API conectada correctamente: $it"
                             }
                             .onFailure {
-
-                                connectionStatus =
-                                    "Error de conexión"
-
+                                connectionStatus = "Error de conexión"
                                 error = it.message
                                     ?: "No fue posible conectar"
                             }
@@ -452,117 +400,120 @@ fun SigelabApp() {
                         busy = false
                     }
                 },
-
                 enabled = !busy,
-
                 modifier = Modifier.fillMaxWidth()
             ) {
-
                 Text("Probar conexión API")
             }
 
             if (connectionStatus.isNotBlank()) {
+                Text(connectionStatus)
+            }
 
+            if (busy) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            if (error.isNotBlank()) {
                 Text(
-                    text = connectionStatus,
-                    color = MaterialTheme.colorScheme.primary
+                    error,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
+        }
 
-        } else {
+    } else {
 
-            val currentSession = session!!
+        AppNavegacion(
+            session = currentSession,
 
-            Text(
-                text = "Bienvenido, ${currentSession.name}",
-                style = MaterialTheme.typography.titleLarge
-            )
+            onLogout = {
+                Api.logout(currentSession.token)
 
-            Text(
-                text = "Rol: ${currentSession.role}"
-            )
+                session = null
+                dashboard = null
+                password = ""
+                error = ""
+                connectionStatus = ""
+                busy = false
+            },
 
-            Button(
-                onClick = {
-                    reload(currentSession)
-                },
-                enabled = !busy
-            ) {
+            dashboardContent = {
 
-                Text("Actualizar resumen")
-            }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
 
-            dashboard?.let { data ->
+                    Text(
+                        "Panel principal",
+                        style = MaterialTheme.typography.headlineMedium
+                    )
 
-                val indicators = listOf(
-                    "Total de equipos" to data.total,
-                    "Disponibles" to data.disponibles,
-                    "Prestados" to data.prestados,
-                    "Dañados" to data.danados,
-                    "En mantenimiento" to data.mantenimiento,
-                    "De baja" to data.baja,
-                    "Préstamos activos" to data.activos,
-                    "Préstamos vencidos" to data.vencidos
-                )
+                    Text("Usuario: ${currentSession.name}")
+                    Text("Rol: ${currentSession.role}")
 
-                indicators.forEach { (title, count) ->
-
-                    ElevatedCard(
-                        modifier = Modifier.fillMaxWidth()
+                    Button(
+                        onClick = {
+                            reload(currentSession)
+                        },
+                        enabled = !busy
                     ) {
+                        Text("Actualizar resumen")
+                    }
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(18.dp),
+                    if (busy) {
+                        LinearProgressIndicator(
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                            horizontalArrangement =
-                                Arrangement.SpaceBetween
-                        ) {
+                    if (error.isNotBlank()) {
+                        Text(
+                            error,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
 
-                            Text(title)
+                    dashboard?.let { data ->
 
-                            Text(
-                                text = "$count",
-                                style =
-                                    MaterialTheme.typography.titleLarge
-                            )
+                        val indicadores = listOf(
+                            "Total de equipos" to data.total,
+                            "Disponibles" to data.disponibles,
+                            "Prestados" to data.prestados,
+                            "Dañados" to data.danados,
+                            "En mantenimiento" to data.mantenimiento,
+                            "De baja" to data.baja,
+                            "Préstamos activos" to data.activos,
+                            "Préstamos vencidos" to data.vencidos
+                        )
+
+                        indicadores.forEach { (titulo, cantidad) ->
+                            ElevatedCard(
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(18.dp),
+                                    horizontalArrangement =
+                                        Arrangement.SpaceBetween
+                                ) {
+                                    Text(titulo)
+                                    Text(
+                                        "$cantidad",
+                                        style = MaterialTheme.typography.titleLarge
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
-
-            OutlinedButton(
-                onClick = {
-
-                    Api.logout(currentSession.token)
-
-                    session = null
-                    dashboard = null
-                    password = ""
-                    error = ""
-                    connectionStatus = ""
-                    busy = false
-                }
-            ) {
-
-                Text("Cerrar sesión")
-            }
-        }
-
-        if (busy) {
-
-            LinearProgressIndicator(
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        if (error.isNotBlank()) {
-
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
+        )
     }
 }
