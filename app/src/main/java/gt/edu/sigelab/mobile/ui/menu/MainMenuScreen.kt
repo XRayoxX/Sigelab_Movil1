@@ -24,11 +24,14 @@ fun MainMenuScreen(
         "dashboard" to "Panel principal",
         "equipos" to "Inventario de equipos",
         "laboratorios" to "Laboratorios",
+        "tipos" to "Tipos de equipo",
+        "solicitantes" to "Solicitantes",
         "prestamos" to "Préstamos",
         "devoluciones" to "Devoluciones",
         "mantenimiento" to "Mantenimiento",
         "usuarios" to "Usuarios",
-        "reportes" to "Reportes"
+        "reportes" to "Reportes",
+        "auditoria" to "Auditoría"
     )
 
     Column(
@@ -41,6 +44,7 @@ fun MainMenuScreen(
 
         Text(
             text = "SIGELAB",
+            color = MaterialTheme.colorScheme.primary,
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold
         )
@@ -52,6 +56,7 @@ fun MainMenuScreen(
 
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
             shape = RoundedCornerShape(16.dp)
         ) {
             Column(
@@ -79,7 +84,11 @@ fun MainMenuScreen(
             fontWeight = FontWeight.SemiBold
         )
 
-        modulos.forEach { (ruta, titulo) ->
+        modulos.filter { (ruta, _) -> when (ruta) {
+            "usuarios", "auditoria", "laboratorios", "tipos" -> rolUsuario == "ADMIN"
+            "dashboard", "reportes" -> true
+            else -> rolUsuario in listOf("ADMIN", "ENCARGADO")
+        } }.forEach { (ruta, titulo) ->
 
             ElevatedCard(
                 modifier = Modifier
@@ -105,6 +114,7 @@ fun MainMenuScreen(
 
                     Text(
                         text = "›",
+                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.headlineSmall
                     )
                 }
